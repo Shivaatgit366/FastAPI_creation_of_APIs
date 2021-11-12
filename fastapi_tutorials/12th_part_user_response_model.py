@@ -6,7 +6,7 @@ from fastapi_tutorials import models
 from fastapi_tutorials.database import engine, SessionLocal
 import uvicorn
 from sqlalchemy.orm import Session
-
+from passlib.context import CryptContext
 
 app = FastAPI()
 
@@ -57,12 +57,8 @@ def destroy(id, db: Session = Depends(get_db)):
 
 
 """
-# "delete" is HTTP method to delete something.
-@app.delete("/blog/{id}", status_code=status.HTTP_200_OK)  # if 204 is given, then there will be no response body.
-def destroy(id, db: Session = Depends(get_db)):  # we will delete the object which contains details of one row.
-    db.query(models.Blog).filter(models.Blog.id == id).delete(synchronize_session=False)
-    db.commit()
-    return {"message": "data has been deleted"}
+"passlib" library is used for password hashing. Recommended algorithm for password hashing is "bcrypt".
+Import the crypt context from the passlib library.
 """
 
 
@@ -75,22 +71,47 @@ def all_blogs_returner(db: Session = Depends(get_db)):
 # response_model = desired model/class what we have created in the schema.py. It is also a pydantic model.
 # add it in the decorator.
 @app.get("/blog/{id}", status_code=200, response_model=schema.Show_blog)
-def id_row_returner(id, response: Response, db: Session = Depends(get_db)):
+def id_row_returner(id: int, response: Response, db: Session = Depends(get_db)):
     record = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not record:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return {"error_message": f"your id {id} is not found"}
+        # the below code does not work. Do not use it. Use "raise HTTPException" statement for raising the error.
+        # response.status_code = status.HTTP_200_OK
+        # return {"error_message": f"your id {id} is not found"}
+
+        # below is the correct method to get the desired error message.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Blog with id {id} is not available")
     return record
 
 
-@app.post("/user", status_code=status.HTTP_201_CREATED)
+# this pwd_context object has an attribute called "hash function" which encrypts the user entered password.
+# Encrypted password is stored inside the variable, it will be sent as the post request instead of the real password.
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # an object is created using "cryptcontext" class.
+
+
+@app.post("/user", status_code=status.HTTP_201_CREATED, response_model=schema.Show_user)  # response model is added.
 def create_user(request_body: schema.Create_user, db: Session = Depends(get_db)):
-    new_row = models.Customer(name=request_body.name, email=request_body.email, password=request_body.password)
+    hashedPassword = pwd_context.hash(request_body.password)
+    new_row = models.Customer(name=request_body.name, email=request_body.email, password=hashedPassword)
     db.add(new_row)
     db.commit()
     db.refresh(new_row)
     return new_row
 
 
+@app.get("/user/{id}", status_code=200, response_model=schema.Show_user)
+def user_id_returner(id, response: Response, db: Session = Depends(get_db)):
+    record = db.query(models.Customer).filter(models.Customer.id == id).first()
+    if not record:
+        # the below code does not work. Do not use it. Use "raise HTTPException" statement for raising the error.
+        # response.status_code = status.HTTP_200_OK
+        # return {"error_message": f"your id {id} is not found"}
+
+        # below is the correct method to get the desired error message.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with id {id} is not available")
+    else:
+        return record
+
+
 if __name__ == '__main__':
-    uvicorn.run("10th_part:app", reload=True)
+    uvicorn.run("12th_part_user_response_model:app", reload=True)
+

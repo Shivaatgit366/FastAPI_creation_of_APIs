@@ -6,7 +6,7 @@ from fastapi_tutorials import models
 from fastapi_tutorials.database import engine, SessionLocal
 import uvicorn
 from sqlalchemy.orm import Session
-
+from passlib.context import CryptContext
 
 app = FastAPI()
 
@@ -57,12 +57,8 @@ def destroy(id, db: Session = Depends(get_db)):
 
 
 """
-# "delete" is HTTP method to delete something.
-@app.delete("/blog/{id}", status_code=status.HTTP_200_OK)  # if 204 is given, then there will be no response body.
-def destroy(id, db: Session = Depends(get_db)):  # we will delete the object which contains details of one row.
-    db.query(models.Blog).filter(models.Blog.id == id).delete(synchronize_session=False)
-    db.commit()
-    return {"message": "data has been deleted"}
+"passlib" library is used for password hashing. Recommended algorithm for password hashing is "bcrypt".
+Import the crypt context from the passlib library.
 """
 
 
@@ -83,9 +79,15 @@ def id_row_returner(id, response: Response, db: Session = Depends(get_db)):
     return record
 
 
+# this pwd_context object has an attribute called "hash function" which encrypts the user entered password.
+# Encrypted password is stored inside the variable, it will be sent as the post request instead of the real password.
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # an object is created using "cryptcontext" class.
+
+
 @app.post("/user", status_code=status.HTTP_201_CREATED)
 def create_user(request_body: schema.Create_user, db: Session = Depends(get_db)):
-    new_row = models.Customer(name=request_body.name, email=request_body.email, password=request_body.password)
+    hashedPassword = pwd_context.hash(request_body.password)
+    new_row = models.Customer(name=request_body.name, email=request_body.email, password=hashedPassword)
     db.add(new_row)
     db.commit()
     db.refresh(new_row)
@@ -93,4 +95,4 @@ def create_user(request_body: schema.Create_user, db: Session = Depends(get_db))
 
 
 if __name__ == '__main__':
-    uvicorn.run("10th_part:app", reload=True)
+    uvicorn.run("11th_part_password_hash:app", reload=True)
