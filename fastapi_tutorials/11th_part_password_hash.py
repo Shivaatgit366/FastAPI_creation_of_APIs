@@ -8,7 +8,9 @@ import uvicorn
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
+
 app = FastAPI()
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -59,6 +61,9 @@ def destroy(id, db: Session = Depends(get_db)):
 """
 "passlib" library is used for password hashing. Recommended algorithm for password hashing is "bcrypt".
 Import the crypt context from the passlib library.
+First install the passlib and bcrypt     pip install "passlib[bcrypt]".
+From passlib.context, we should import CryptContext.
+Finally, an object called pwd_context will be created using the class "CryptContext" with few hashing attributes.
 """
 
 
@@ -79,8 +84,9 @@ def id_row_returner(id, response: Response, db: Session = Depends(get_db)):
     return record
 
 
-# this pwd_context object has an attribute called "hash function" which encrypts the user entered password.
-# Encrypted password is stored inside the variable, it will be sent as the post request instead of the real password.
+# this pwd_context object has an attribute called "hash" function which encrypts the user entered password.
+# Encrypted password is stored inside the variable.
+# Instead of schema password, hashed password will be sent in the post request.
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # an object is created using "cryptcontext" class.
 
 

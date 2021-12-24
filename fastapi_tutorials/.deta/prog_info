@@ -1,0 +1,1 @@
+{"id":"1371b040-63a5-43e4-b82b-d14d45b22742","space":13375,"runtime":"python3.9","name":"fastapi_tutorials","path":"2amm1f","project":"c0d13c2e","account":"144798365827","region":"ap-southeast-1","deps":["fastapi","uvicorn","python-jose","sqlalchemy","passlib","bcrypt"],"envs":null,"public":true,"log_level":"debug","cron":""}

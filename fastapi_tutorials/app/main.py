@@ -1,3 +1,4 @@
+import fastapi
 from fastapi import FastAPI
 import fastapi_tutorials
 from fastapi_tutorials.database import engine

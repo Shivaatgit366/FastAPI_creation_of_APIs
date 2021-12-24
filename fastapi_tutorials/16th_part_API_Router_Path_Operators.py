@@ -11,7 +11,8 @@ from fastapi_tutorials.routers import blog
 from fastapi_tutorials.routers import customers
 
 """
-
+While defining the object itself we can add prefixes, tags, responses, dependencies which are repeated everywhere.
+These repetitive things can be unwritten during the code.
 """
 
 app = FastAPI()
@@ -24,4 +25,3 @@ app.include_router(customers.router)
 
 if __name__ == '__main__':
     uvicorn.run("16th_part_API_Router_Path_Operators:app", reload=True)
-

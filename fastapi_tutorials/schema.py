@@ -1,7 +1,8 @@
 from fastapi import FastAPI
-from typing import Optional
 from pydantic import BaseModel
+from typing import Optional
 from typing import List
+
 
 app = FastAPI()
 
@@ -43,3 +44,22 @@ class Create_user(BaseModel):  # new model is created. It will be used for reque
     name: str
     email: str
     password: str
+
+
+# "OAuth2PasswordBearer" library takes "username" as the identifier, so we are giving username for the input.
+class Login(BaseModel):  # username means the email of the user in this example.
+    username: str
+    password: str
+
+
+# create these two below models for the token creation.
+# Token and TokenData are the pydantic models which will be created.
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+

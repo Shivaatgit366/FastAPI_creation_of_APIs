@@ -6,12 +6,15 @@ from typing import List
 from fastapi_tutorials import models
 from fastapi_tutorials.database import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/user", tags=["Customers"])
+# during the object initiation itself we can include tags, prefixes, responses and dependencies.
+# Just like "app" is created using FastAPI(), "router" object is created using APIRouter().
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # an object is created using "cryptcontext" class.
 
 
-@router.post("/user", status_code=status.HTTP_201_CREATED, response_model=schema.Show_user, tags=["Customers"])
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=schema.Show_user)
 # response model is added.
 def create_user(request_body: schema.Create_user, db: Session = Depends(get_db)):
     hashedPassword = pwd_context.hash(request_body.password)
@@ -22,7 +25,7 @@ def create_user(request_body: schema.Create_user, db: Session = Depends(get_db))
     return new_row
 
 
-@router.get("/user/{id}", status_code=200, response_model=schema.Show_user, tags=["Customers"])
+@router.get("/{id}", status_code=200, response_model=schema.Show_user)
 def user_id_returner(id, response: Response, db: Session = Depends(get_db)):
     record = db.query(models.Customer).filter(models.Customer.id == id).first()
     if not record:
