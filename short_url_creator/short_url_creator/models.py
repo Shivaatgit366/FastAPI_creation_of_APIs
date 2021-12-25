@@ -6,7 +6,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, nullable=False)
-    email = Column(VARCHAR(250), nullable=False)
+    email = Column(VARCHAR(250), unique=True, nullable=False)
     password = Column(VARCHAR(250), nullable=False)
 
 

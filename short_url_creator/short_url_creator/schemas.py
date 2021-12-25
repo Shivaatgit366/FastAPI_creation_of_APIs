@@ -1,5 +1,6 @@
+from datetime import date
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from pydantic.schema import datetime
 
 
@@ -9,15 +10,24 @@ class UserBase(BaseModel):
 
 
 class ShorturlBase(BaseModel):
-    created_date: datetime
-    user_id: int
-    original_url: str
+    original_url: HttpUrl
 
 
-class Click(BaseModel):
-    date: datetime
+class Short_Url(ShorturlBase):
+    created_date: date
+    short_url: str
+
+    class Config:
+        orm_mode = True
+
+
+class Clicks(BaseModel):
+    date: date
     short_url: str
     click_count: int
+
+    class Config:
+        orm_mode = True
 
 
 class Token(BaseModel):
@@ -26,5 +36,10 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ShortUrlCount(BaseModel):
+    created_date: date
+    short_urls_count: int
 
