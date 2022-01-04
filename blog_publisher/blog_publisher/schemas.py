@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from pydantic.schema import date
+from blog_publisher.models import StatusTypes
 
 
 class AuthorBase(BaseModel):
@@ -8,36 +9,31 @@ class AuthorBase(BaseModel):
     password: str
 
 
-class BlogBase(BaseModel):
+class BlogCreate(BaseModel):
     title: str
     body: str
 
 
-class BlogsOut(BaseModel):
+# since the user can keep the title and body "empty", we should provide "optional" attributes to the class.
+class BlogUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+
+
+class BlogSummary(BaseModel):
+    blog_id: str
     author_id: int
-    blog_title: str
+    title: str
+    created_date: date
+    published_date: Optional[date] = None
+    status: StatusTypes
 
     class Config:
         orm_mode = True
 
 
-class BlogsCreate(BaseModel):
-    author_id: int
-    blog_id: str
-    published_date: date
-    title: str
-
-    class Config:
-        orm_mode = True
-
-
-class GetOneBlog(BaseModel):
-    blog_id: str
-    title: str
+class Blog(BlogSummary):
     body: str
-
-    class Config:
-        orm_mode = True
 
 
 class Token(BaseModel):
@@ -50,3 +46,5 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+

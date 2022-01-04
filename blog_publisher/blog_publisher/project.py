@@ -9,7 +9,6 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 
-
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -88,14 +87,14 @@ def sign_in(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depe
             return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.post("/blogs", status_code=status.HTTP_201_CREATED, response_model=schemas.BlogsCreate, tags=["blogs"])
-def create_new_blog(req_blog: schemas.BlogBase, db: Session = Depends(get_db),
+@app.post("/blogs", status_code=status.HTTP_201_CREATED, response_model=schemas.Blog, tags=["blogs"], )
+def create_new_blog(req_blog: schemas.BlogCreate, db: Session = Depends(get_db),
                     current_author: models.Authors = Depends(get_current_user)):
     today = datetime.now().date()
     blog_id = generate_random_string(length=6)
     existing_author = db.query(models.Authors).filter(models.Authors.email == current_author.email).first()
     id = existing_author.author_id
-    new_blog = models.Blogs(blog_id=blog_id, published_date=today,
+    new_blog = models.Blogs(blog_id=blog_id, created_date=today,
                             author_id=id, title=req_blog.title, body=req_blog.body)
     db.add(new_blog)
     db.commit()
@@ -103,19 +102,34 @@ def create_new_blog(req_blog: schemas.BlogBase, db: Session = Depends(get_db),
     return new_blog
 
 
-@app.get("/blogs", status_code=status.HTTP_200_OK, response_model=List[schemas.BlogsOut], tags=["blogs"])
+@app.post("/blogs/{blog_id}/publish", tags=["blogs"], response_model=schemas.Blog)
+def publish_your_blog(blog_id: str, db: Session = Depends(get_db),
+                      current_author: models.Authors = Depends(get_current_user)):
+    publish_day = datetime.now().date()
+    existing_blog = db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id,
+                                                  models.Blogs.author_id == current_author.author_id).first()
+    if not existing_blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"blog with the id {blog_id} is not found")
+    # we can simply use "db.add()" function in sqlalchemy, it will update the given columns.
+    # another way of updating the table is to use "update" method.
+    if existing_blog.status != models.StatusTypes.PUBLISHED:
+        existing_blog.status = models.StatusTypes.PUBLISHED
+        existing_blog.published_date = publish_day
+        db.add(existing_blog)
+        db.commit()
+        db.refresh(existing_blog)
+    return existing_blog
+
+
+@app.get("/blogs", status_code=status.HTTP_200_OK, response_model=List[schemas.BlogSummary], tags=["blogs"])
 def get_all_blogs(db: Session = Depends(get_db), current_author: models.Authors = Depends(get_current_user)):
-    blog = db.query(models.Blogs.author_id, models.Blogs.title).all()
-    blogs_list = []
-    for (author_id, title) in blog:
-        output = {"author_id": author_id, "blog_title": title}
-        blogs_list.append(output)
-    return blogs_list
+    blogs = db.query(models.Blogs).filter(models.Blogs.author_id == current_author.author_id).all()
+    return blogs
 
 
-@app.get("/blogs/{blog_id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.GetOneBlog, tags=["blogs"])
-def get_blog(blog_id: str, db: Session = Depends(get_db),
-             current_author: models.Authors = Depends(get_current_user)):
+@app.get("/blogs/{blog_id}", response_model=schemas.Blog, tags=["blogs"])
+def get_one_blog(blog_id: str, db: Session = Depends(get_db),
+                 current_author: models.Authors = Depends(get_current_user)):
     existing_blog = db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id,
                                                   models.Blogs.author_id == current_author.author_id).first()
     if not existing_blog:
@@ -123,21 +137,48 @@ def get_blog(blog_id: str, db: Session = Depends(get_db),
     return existing_blog
 
 
-@app.patch("/blogs/{blog_id}", status_code=status.HTTP_202_ACCEPTED, tags=["blogs"])
-def update_blog(blog_id: str, req_body: schemas.BlogBase, db: Session = Depends(get_db),
+@app.patch("/blogs/{blog_id}", tags=["blogs"], response_model=schemas.Blog)
+def update_blog(blog_id: str, req_body: schemas.BlogUpdate, db: Session = Depends(get_db),
                 current_author: models.Authors = Depends(get_current_user)):
     existing_blog = db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id,
                                                   models.Blogs.author_id == current_author.author_id).first()
     if not existing_blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="blog id is incorrect")
+
+    if existing_blog.status == models.StatusTypes.PUBLISHED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="published blog can not be edited")
+
     else:
-        response_dict = {"title": req_body.title, "body": req_body.body}
-        db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id).update(response_dict, synchronize_session=False)
-        db.commit()
-        return {"message": f"your blog with the id {blog_id} has been updated"}
+        update_dict = req_body.dict(exclude_unset=True)
+        # "req_body" is an object from pydantic model.
+        # ".dict" function gives the dictionary made from the attributes of the object.
+        if update_dict:
+            if "title" in update_dict and update_dict["title"] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title can not be null")
+            elif "body" in update_dict and update_dict["body"] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Body can not be null")
+            else:
+                db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id).update(update_dict,
+                                                                                      synchronize_session=False)
+                db.commit()
+        return existing_blog
+
+    # else:
+    # we can update in 2 ways. By using "db.add()" function just like below.
+    #     existing_blog.title = req_body.title
+    #     existing_blog.body = req_body.body
+    #     db.add(existing_blog)
+    #     db.commit()
+
+    # we can update by "update()" function by creating the required dictionary. Select the object and update as below.
+    #     # response_dict = {"title": req_body.title, "body": req_body.body}
+    #     # db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id).update(response_dict,
+    #                                                                             synchronize_session=False)
+    #     db.commit()
+    #     return existing_blog
 
 
-@app.delete("/blogs/{blog_id}", status_code=status.HTTP_200_OK, tags=["blogs"])
+@app.delete("/blogs/{blog_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["blogs"])
 def delete_blog(blog_id: str, db: Session = Depends(get_db),
                 current_author: models.Authors = Depends(get_current_user)):
     existing_blog = db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id,
@@ -147,7 +188,6 @@ def delete_blog(blog_id: str, db: Session = Depends(get_db),
     else:
         db.query(models.Blogs).filter(models.Blogs.blog_id == blog_id).delete(synchronize_session=False)
         db.commit()
-        return {"message": f"the blog with the id {blog_id} has been deleted"}
 
 
 if __name__ == '__main__':
